@@ -1,0 +1,58 @@
+#!/usr/bin/env python
+import subprocess, sys, time, os
+
+def container_shell(container):
+	try:
+		subprocess.check_output("docker exec " + container + " ls /bin/bash", shell=True, stderr=open(os.devnull, 'w'))
+		subprocess.call("docker exec -it " + container + " /bin/bash -i", shell=True)
+	except:
+		subprocess.call("docker exec -it " + container + " /bin/sh -i", shell=True)
+	return
+
+def let_user_pick(options):
+	for id, element in enumerate(options):
+		print("{}) {}".format(id + 1, element['container_name']))
+	i = input("Choose a container: ")
+	try:
+		if 0 < int(i) <= len(options):
+			return int(i)
+	except:
+		pass
+	return None
+
+def list_containers():
+	output = subprocess.check_output("docker ps", shell=True)
+	result = {}
+	count = 0
+	results = []
+	for row in output.split('\n'):
+		if ' ' in row and 'NAMES' not in row:
+			value = row.split(' ')
+			result = {
+				'container_id': value[0],
+				'container_name': value[-1].split(' ')[-1],
+			}
+			results.append(result)
+			result = {}
+			count = count + 1
+
+	selection = let_user_pick(results)
+	container = results[selection - 1]
+	container_shell(container['container_id'])
+
+try:
+	if len(sys.argv) < 2:
+		list_containers()
+	elif sys.argv[1] == '-h' or sys.argv[1] == '--help':
+		print 'Dbash'
+		print 'Quickly connect to a terminal within a running Docker container.'
+		print '\n'
+		print 'Usage:'
+		print '	To jump into a known container:'
+		print '		dbash [DOCKER CONTAINER ID OR CONTAINER NAME]'
+		print '	To pick from a selection of running containers:'
+		print '		dbash'
+	else:
+		container_shell(sys.argv[1])
+except KeyboardInterrupt:
+    print('User escaped. Cancelling.')
